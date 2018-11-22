@@ -1,2 +1,2 @@
-# iupdates
-Gets Windows updates using WUApiLib
+# IUpdates
+Checks Windows updates using WUApiLib
