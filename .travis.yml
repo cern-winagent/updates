@@ -1,7 +1,7 @@
 language: csharp
 solution: updates.sln
 script:
-- wget -P bin/ https://github.com/cern-winagent/plugin/releases/latest/download/plugin.dll
+- wget -P lib/ https://github.com/cern-winagent/plugin/releases/latest/download/plugin.dll
 - msbuild /p:Configuration=Release updates.sln
 before_deploy:
 - sha1sum updates/bin/Release/updates.dll > updates/bin/Release/updates.dll.sha1
