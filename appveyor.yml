@@ -1,0 +1,35 @@
+version: 1.0.{build}
+configuration: Release
+platform: Any CPU
+
+environment:
+  APP_TYPE: dll
+  APP_NAME: $(APPVEYOR_PROJECT_NAME)
+  APP_BIN: $(APP_NAME).$(APP_TYPE)
+
+before_build:
+- ps: nuget restore
+- ps: mkdir $ENV:APP_NAME/lib
+- ps: Start-FileDownload 'https://github.com/cern-winagent/plugin/releases/latest/download/plugin.dll' -FileName $ENV:APP_NAME/lib/plugin.dll
+
+build_script:
+- ps: msbuild /p:VersionAssembly=$ENV:APPVEYOR_REPO_TAG_NAME /p:Configuration=Release $ENV:APP_NAME.sln
+
+after_build:
+- ps: (Get-FileHash $ENV:APP_NAME/bin/Release/$ENV:APP_BIN -Algorithm SHA1).Hash > $ENV:APP_NAME/bin/Release/$ENV:APP_BIN.sha1
+
+artifacts:
+- path: $(APP_NAME)/bin/Release/$(APP_BIN)
+  name: $(APP_BIN)
+- path: $(APP_NAME)/bin/Release/$(APP_BIN).sha1
+  name: $(APP_BIN).sha1
+
+deploy:
+- provider: GitHub
+  auth_token:
+    secure: I9yNz4hsZBa4a7xxyISIQOV6xo/Ol3sWtsIXcPhACKe288D0tuyHZ3J6GwFuSBi2
+  repository: cern-winagent/$(APP_NAME)
+  artifact: $(APP_BIN), $(APP_BIN).sha1
+  force_update: true
+  on:
+    APPVEYOR_REPO_TAG: true
