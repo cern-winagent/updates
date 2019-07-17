@@ -1,20 +1,19 @@
-﻿using System;
+﻿using plugin;
+using System;
 using WUApiLib;
 using Newtonsoft.Json.Linq;
 
-namespace plugin
+namespace updates
 {
     [PluginAttribute(PluginName = "Updates")]
     public class IUpdates : IInputPlugin
     {
-        public string Execute()
+        public string Execute(JObject set)
         {
             dynamic package = new JObject();
             package.automaticUpdates = null;
             package.numInstalledUpdates = null;
             package.installedUpdates = new JArray();
-            package.numUpdatesAvailable = null;
-            package.updatesAvailable = new JArray();
             dynamic update = new JObject();
 
             // Checks if automatic updates are enabled
@@ -43,34 +42,36 @@ namespace plugin
                 foreach (IUpdate iupdate in sResult.Updates)
                 {
                     update.id = iupdate.Identity.UpdateID;
-                    update.date = iupdate.LastDeploymentChangeTime;
+                    update.revision = iupdate.Identity.RevisionNumber;
+                    update.dep_date = iupdate.LastDeploymentChangeTime.ToShortDateString();
                     update.title = iupdate.Title;
-                    update.categories = new JArray();
+
+                    var categories = new JArray();
                     // IUpdate class
                     // https://docs.microsoft.com/en-us/windows/desktop/api/wuapi/nn-wuapi-icategory
                     foreach (ICategory icategory in iupdate.Categories)
                     {
-                        update.categories.Add(icategory.Name);
+                        categories.Add(icategory.Name);
                     }
+
+                    update.categories = String.Join(", ", categories);
 
                     package.installedUpdates.Add(update);
                 }
 
 
-                // Number of non installed updates
 
-                sResult = uSearcher.Search("IsInstalled=0 And IsHidden=0");
 
-                package.numUpdatesAvailable = sResult.Updates.Count;
-
-                foreach (IUpdate iupdate in sResult.Updates)
+                // Updates history
+                int count = uSearcher.GetTotalHistoryCount();
+                Console.WriteLine("COOOOOOOOOOOOOOOOOUNT: " + count);
+                IUpdateHistoryEntryCollection history = uSearcher.QueryHistory(0, count);
+                for (int i = 0; i < count; ++i)
                 {
-                    update.id = iupdate.Identity.UpdateID;
-                    update.date = iupdate.LastDeploymentChangeTime;
-                    update.title = iupdate.Title;
-
-                    package.updatesAvailable.Add(update);
+                    Console.WriteLine(string.Format("ID: {0}\tRevision: {1}\tDate: {2}\tTitle: {3}", history[i].UpdateIdentity.UpdateID, history[i].UpdateIdentity.RevisionNumber, history[i].Date.ToShortDateString(), history[i].Title));
                 }
+
+
 
                 return package.ToString();
             }
