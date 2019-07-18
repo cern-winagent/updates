@@ -2,6 +2,9 @@
 using System;
 using WUApiLib;
 using Newtonsoft.Json.Linq;
+using System.Linq;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace updates
 {
@@ -10,18 +13,11 @@ namespace updates
     {
         public string Execute(JObject set)
         {
-            dynamic package = new JObject();
-            package.automaticUpdates = null;
-            package.numInstalledUpdates = null;
-            package.installedUpdates = new JArray();
-            dynamic update = new JObject();
-
             // Checks if automatic updates are enabled
             AutomaticUpdates automaticUpdates = new AutomaticUpdates();
-            package.automaticUpdates = automaticUpdates.ServiceEnabled;
-
-
-            // Checks installed updates
+            var automaticUpdatesEnabled = automaticUpdates.ServiceEnabled;
+            
+            // Checks updates available
             UpdateSession uSession = new UpdateSession();
 
             // IUpdateSearcher class
@@ -32,20 +28,16 @@ namespace updates
             uSearcher.Online = false;
             try
             {
-                // Number of installed updates
-                ISearchResult sResult = uSearcher.Search("IsInstalled=1 And IsHidden=0");
+                // Number of available updates
+                ISearchResult sResult = uSearcher.Search("IsInstalled=0 And IsHidden=0");
 
-                package.numInstalledUpdates = sResult.Updates.Count;
+                var numUpdatesAvailable = sResult.Updates.Count;
 
+                var updatesAvailable = new List<Models.Update>();
                 // IUpdate class
                 // https://docs.microsoft.com/en-us/windows/desktop/api/wuapi/nn-wuapi-iupdate
                 foreach (IUpdate iupdate in sResult.Updates)
                 {
-                    update.id = iupdate.Identity.UpdateID;
-                    update.revision = iupdate.Identity.RevisionNumber;
-                    update.dep_date = iupdate.LastDeploymentChangeTime.ToShortDateString();
-                    update.title = iupdate.Title;
-
                     var categories = new JArray();
                     // IUpdate class
                     // https://docs.microsoft.com/en-us/windows/desktop/api/wuapi/nn-wuapi-icategory
@@ -54,35 +46,47 @@ namespace updates
                         categories.Add(icategory.Name);
                     }
 
-                    update.categories = String.Join(", ", categories);
+                    // Create Update
+                    var update = new Models.Update
+                    {
+                        ID = iupdate.Identity.UpdateID,
+                        DatePublished = iupdate.LastDeploymentChangeTime.ToShortDateString(),
+                        Title = iupdate.Title,
+                        Categories = String.Join(", ", categories)
+                    };
 
-                    package.installedUpdates.Add(update);
+                    // Add update to the list
+                    updatesAvailable.Add(update);
                 }
-
-
-
 
                 // Updates history
                 int count = uSearcher.GetTotalHistoryCount();
-                Console.WriteLine("COOOOOOOOOOOOOOOOOUNT: " + count);
-                IUpdateHistoryEntryCollection history = uSearcher.QueryHistory(0, count);
-                for (int i = 0; i < count; ++i)
+                var history = uSearcher.QueryHistory(0, count).Cast<IUpdateHistoryEntry>();
+
+                var lastInstalled = history.Where(u => (u.HResult == 0) && 
+                                                 (!u.Title.Contains("Definition Update for Microsoft Endpoint Protection")))
+                                           .First().Date;
+
+                // Create the Machine info object to be returned
+                var machineInfo = new Models.MachineInfo
                 {
-                    Console.WriteLine(string.Format("ID: {0}\tRevision: {1}\tDate: {2}\tTitle: {3}", history[i].UpdateIdentity.UpdateID, history[i].UpdateIdentity.RevisionNumber, history[i].Date.ToShortDateString(), history[i].Title));
-                }
+                    HostName = System.Environment.MachineName,
+                    AutomaticUpdates = automaticUpdatesEnabled,
+                    LastTimeUpdated = lastInstalled,
+                    NumUpdatesAvailable = numUpdatesAvailable,
+                    UpdatesAvailable = updatesAvailable
+                };
 
-
-
-                return package.ToString();
+                return JsonConvert.SerializeObject(machineInfo);
             }
-
-            catch (Exception ex)
+            catch (InvalidOperationException ioe)
             {
-                Console.WriteLine("Something went wrong: " + ex.Message);
+                throw new Exceptions.EmptyHistoryException("Could not find any successful installation in the update history", ioe);
             }
-
-            return null;
+            catch (Exception)
+            {
+                throw;
+            }
         }
-
     }
 }
