@@ -1,0 +1,34 @@
+stages:
+  - compile
+  - release
+
+variables:
+  assembly_extension: "dll"
+
+compilation:
+  stage: compile
+  before_script:
+    - nuget restore
+    - mkdir $env:CI_PROJECT_NAME/lib
+    - wget https://gitlab.cern.ch/$env:CI_PROJECT_NAMESPACE/plugin/-/jobs/artifacts/master/raw/plugin/bin/Release/plugin.dll?job=compilation -OutFile $env:CI_PROJECT_NAME/lib/plugin.dll
+  script:
+    - msbuild /p:VersionAssembly=$env:CI_COMMIT_TAG /p:Configuration=Release $env:CI_PROJECT_NAME.sln
+  after_script:
+    - (Get-FileHash $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION -Algorithm SHA1).Hash > $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION.sha1
+  artifacts:
+    paths:
+      - $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION
+      - $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION.sha1
+    expire_in: 1 year
+
+# This needs to be changed by GitLab
+# Release creation should be 'keyword based'
+release:
+  stage: release
+  only: 
+    - tags
+  script: 
+    # Create a release for the current tag
+    - CreateRelease
+    # Update "latest" release name the newest version number
+    - UpdateLatestRelease
