@@ -12,6 +12,8 @@ namespace updates
     [PluginAttribute(PluginName = "Updates")]
     public class IUpdates : IInputPlugin
     {
+        public event EventHandler<MessageEventArgs> MessageEvent;
+
         public string Execute(JObject set)
         {
             // Checks if automatic updates are enabled
