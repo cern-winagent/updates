@@ -67,7 +67,10 @@ namespace updates
                 var history = uSearcher.QueryHistory(0, count).Cast<IUpdateHistoryEntry>();
 
                 var lastInstalled = history.Where(u => (u.HResult == 0) && 
-                                                 (!u.Title.Contains("Definition Update for Microsoft Endpoint Protection")))
+                                                 (!u.Title.Contains("Definition Update for Microsoft Endpoint Protection")) &&
+                                                 (!u.Title.Contains("Definition Update for Windows Defender Antivirus")) &&
+                                                 (!u.Title.Contains("Update for Windows Defender Antivirus antimalware platform")) &&
+                                                 (!u.Title.Contains("Security Intelligence Update for Windows Defender Antivirus")))
                                            .First().Date;
 
                 // Create the Machine info object to be returned
