@@ -1,0 +1,18 @@
+path_classifiers:
+  docs:
+  - "LICENSE*"
+  - "*.md"
+  ci:
+  - "appveyor.yml"
+  - ".gitlab-ci.yml"
+  - ".lgtm.yml"
+extraction:
+  csharp:
+    after_prepare:
+    - "export REPO_NAME=updates"
+    - "mkdir $REPO_NAME/lib"
+    - "wget -P $REPO_NAME/lib https://github.com/cern-winagent/plugin/releases/latest/download/plugin.dll"
+    index:
+      solution: "$REPO_NAME.sln"
+      all_solutions: true
+      buildless: true
